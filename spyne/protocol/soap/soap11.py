@@ -51,13 +51,17 @@ from lxml.etree import XMLParser
 from spyne import BODY_STYLE_WRAPPED
 from spyne.util import six
 from spyne.const.xml import DEFAULT_NS
-from spyne.const.http import HTTP_405, HTTP_500
-from spyne.error import RequestNotAllowed
 from spyne.model.fault import Fault
 from spyne.model.primitive import Date, Time, DateTime
 from spyne.protocol.xml import XmlDocument
 from spyne.protocol.soap.mime import collapse_swa
 from spyne.server.http import HttpTransportContext
+
+from spyne.const.http import HTTP_400, HTTP_401, HTTP_404, HTTP_405, HTTP_413, \
+    HTTP_500
+
+from spyne.error import Fault, InternalError, ResourceNotFoundError, \
+    RequestTooLongError, RequestNotAllowed, InvalidCredentialsError
 
 
 def _from_soap(in_envelope_xml, xmlids=None, **kwargs):
@@ -376,4 +380,20 @@ class Soap11(XmlDocument):
         self.event_manager.fire_event('after_serialize', ctx)
 
     def fault_to_http_response_code(self, fault):
+        if isinstance(fault, RequestTooLongError):
+            return HTTP_413
+
+        if isinstance(fault, ResourceNotFoundError):
+            return HTTP_404
+
+        if isinstance(fault, RequestNotAllowed):
+            return HTTP_405
+
+        if isinstance(fault, InvalidCredentialsError):
+            return HTTP_401
+
+        if isinstance(fault, Fault) and (fault.faultcode.startswith('Client.')
+                                                or fault.faultcode == 'Client'):
+            return HTTP_400
+
         return HTTP_500
